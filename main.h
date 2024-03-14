@@ -9,14 +9,18 @@
 #include <sys/time.h>
 
 
-#define MATRICES_NUMBER 3
-#define INPUT1 "a"
-#define INPUT2 "b"
-#define OUTPUT "c"
-#define MATRIX_NAME_EXT "_per_matrix"
-#define ROW_NAME_EXT "_per_row"
-#define ELEMENT_NAME_EXT "_per_element"
+#define MATRICES_NUMBER         3
+#define INPUT1                  "a"
+#define INPUT2                  "b"
+#define OUTPUT                  "c"
 
+#define MATRIX_NAME_EXT         "_per_matrix"
+#define ROW_NAME_EXT            "_per_row"
+#define ELEMENT_NAME_EXT        "_per_element"
+
+#define THREAD_PER_MATRIX       "Method: A thread per matrix"
+#define THREAD_PER_ROW          "Method: A thread per row"
+#define THREAD_PER_ELEMENT      "Method: A thread per element"
 
 /*
  * This is a struct that defines a matrix.
@@ -74,7 +78,7 @@ typedef struct
 
 
 int read_file(char *file_name, matrixStruct *matrix);
-void write_file(char *file_name, char *extension, matrixStruct *matrix);
+void write_file(char *file_name, char *extension, char *entry, matrixStruct *matrix);
 void free_heap(heapStruct *heap);
 
 

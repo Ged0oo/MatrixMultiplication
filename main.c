@@ -21,6 +21,13 @@ int main(int argc, char *argv[])
         file2 = argv[2];
         output = argv[3];
     }
+    else
+    {
+    	printf("Error in the Passed Parameters.\n");
+        free(matA);
+        free(matB);
+        return 0;
+    }
 
     if (read_file(file1, matA) || read_file(file2, matB))
     {
@@ -49,6 +56,7 @@ int main(int argc, char *argv[])
     data->row = matA->row;
     data->col = matB->col;
     data->pad = matA->col;
+
     data->matA = matA->matrix;
     data->matB = matB->matrix;
     heap->matD = data;
@@ -71,9 +79,9 @@ int main(int argc, char *argv[])
         printf("Microseconds taken: %lu\n\n", stop.tv_usec - start.tv_usec);
     }
 
-    write_file(output, MATRIX_NAME_EXT, matC[0]);
-    write_file(output, ROW_NAME_EXT, matC[1]);
-    write_file(output, ELEMENT_NAME_EXT, matC[2]);
+    write_file(output, MATRIX_NAME_EXT, THREAD_PER_MATRIX, matC[0]);
+    write_file(output, ROW_NAME_EXT, THREAD_PER_ROW, matC[1]);
+    write_file(output, ELEMENT_NAME_EXT, THREAD_PER_ELEMENT, matC[2]);
 
     free_heap(heap);
     return 0;
@@ -82,17 +90,19 @@ int main(int argc, char *argv[])
 
 int read_file(char *file_name, matrixStruct *matrix)
 {
-    FILE *input_file;
-    char * line = NULL, full_name[256];
-    size_t len = 0;
+    char * line = NULL, fullName[256];
+    strcpy(fullName, file_name);
+
     int row, col;
+    size_t length = 0;
 
-    strcpy(full_name, file_name);
-    input_file = fopen(full_name, "r");
-    if (input_file == NULL)
-        return -1;
 
-    getline(&line, &len, input_file);
+    FILE *inputFile;
+    inputFile = fopen(fullName, "r");
+    if (inputFile == NULL)
+        return 0;
+
+    getline(&line, &length, inputFile);
     strtok(line, "=");
     row = atoi(strtok(NULL, " "));
     strtok(NULL, "=");
@@ -103,10 +113,13 @@ int read_file(char *file_name, matrixStruct *matrix)
 
     int (*array)[col] = malloc(row * col * sizeof(int));
     int row_c = 0, col_c = 0;
-    while (getline(&line, &len, input_file) != -1) {
+
+    while (getline(&line, &length, inputFile) != -1) 
+    {
         char *num = strtok(line, "\t");
 
-        while (col_c < col && num != NULL) {
+        while (col_c < col && num != NULL) 
+        {
             array[row_c][col_c] = atoi(num);
             num = strtok(NULL, "\t");
             col_c++;
@@ -116,32 +129,44 @@ int read_file(char *file_name, matrixStruct *matrix)
         col_c = 0;
     }
 
-    fclose(input_file);
+    fclose(inputFile);
     if (line)
+    {
         free(line);
+    }
 
     matrix->matrix = array;
     return 0;
 }
 
 
-void write_file(char *file_name, char *extension, matrixStruct *matrix)
+void write_file(char *file_name, char *extension, char *entry, matrixStruct *matrix)
 {
     FILE *output_file;
-    char full_name[256];
+    char fullName[256];
 
-    strcpy(full_name, file_name);
-    strcat(full_name, extension);
-    strcat(full_name, ".txt");
-    output_file = fopen(full_name, "w");
+    int row = matrix->row;
+    int col = matrix->col;
+    int val;
+
+    strcpy(fullName, file_name);
+    strcat(fullName, extension);
+    strcat(fullName, ".txt");
+
+    output_file = fopen(fullName, "w");
 
     if (output_file == NULL)
         return;
 
-    fprintf(output_file, "row=%d col=%d\n", matrix->row, matrix->col);
-    for (int i = 0; i < matrix->row; ++i) {
-        for (int j = 0; j < matrix->col; ++j) {
-            fprintf(output_file, "%d ", ((int (*)[matrix->col])matrix->matrix)[i][j]);
+    fprintf(output_file, "%s\n", entry);
+    fprintf(output_file, "row=%d col=%d\n", row, col);
+
+    for (int i=0 ; i < row ; ++i) 
+    {
+        for (int j = 0; j < col; ++j) 
+        {
+        	val = *((*(matrix->matrix) + i) + j);
+            fprintf(output_file, "%d ", val);
         }
         fprintf(output_file, "\n");
     }
@@ -150,56 +175,59 @@ void write_file(char *file_name, char *extension, matrixStruct *matrix)
 }
 
 
-void *ThreadMatrixMultiplication(void *args)
+void free_heap(heapStruct *heap)
 {
-    functionStruct *data = args;
-    for (int i = 0; i < data->ms->row; ++i) {
-        for (int j = 0; j < data->ms->col; ++j) {
-            ((int (*)[data->ms->col]) data->matC)[i][j] = 0;
-            for (int k = 0; k < data->ms->pad; ++k) {
-                ((int (*)[data->ms->col]) data->matC)[i][j] += ((int (*)[data->ms->pad]) data->ms->matA)[i][k] * ((int (*)[data->ms->col]) data->ms->matB)[k][j];
-            }
-        }
+    free(heap->matA->matrix);
+    free(heap->matA);
+
+    free(heap->matB->matrix);
+    free(heap->matB);
+    
+    for (int i=0 ; i < MATRICES_NUMBER ; ++i) 
+    {
+        free(heap->matC[i]->matrix);
+        free(heap->matC[i]);
     }
-    free(data);
-    pthread_exit(0);
-}
-
-
-void *ThreadRowMultiplication(void *args)
-{
-    functionStruct *data = args;
-    for (int i = 0; i < data->ms->col; ++i) {
-        ((int (*)[data->ms->col])data->matC)[data->cur_row][i] = 0;
-        for (int j = 0; j < data->ms->pad; ++j) {
-            ((int (*)[data->ms->col])data->matC)[data->cur_row][i] += ((int (*)[data->ms->pad])data->ms->matA)[data->cur_row][j] * ((int (*)[data->ms->col])data->ms->matB)[j][i];
-        }
-    }
-    free(data);
-    pthread_exit(0);
-}
-
-
-void *ThreadElementMultiplication(void *args)
-{
-    functionStruct *data = args;
-    ((int (*)[data->ms->col])data->matC)[data->cur_row][data->cur_col] = 0;
-    for (int i = 0; i < data->ms->pad; ++i) {
-        ((int (*)[data->ms->col])data->matC)[data->cur_row][data->cur_col] += ((int (*)[data->ms->pad])data->ms->matA)[data->cur_row][i] * ((int (*)[data->ms->col])data->ms->matB)[i][data->cur_col];
-    }
-    free(data);
-    pthread_exit(0);
+    
+    free(heap->matD);
+    free(heap);
 }
 
 
 void MainMatrixMultiplication(multiplicationStruct *common_data, matrixStruct *output_matrix)
 {
-    pthread_t thread;
-    functionStruct *special_data = malloc(sizeof(functionStruct));
-    special_data->matC = output_matrix->matrix;
-    special_data->ms = common_data;
-    pthread_create(&thread, NULL, ThreadMatrixMultiplication, special_data);
+    functionStruct *_data = malloc(sizeof(functionStruct));
+    _data->matC = output_matrix->matrix;
+    _data->ms = common_data;
+
+ 	pthread_t thread;
+    pthread_create(&thread, NULL, ThreadMatrixMultiplication, _data);
     pthread_join(thread, NULL);
+}
+
+
+void *ThreadMatrixMultiplication(void *args)
+{
+    functionStruct *data = args;
+
+    int row = data->ms->row;
+    int col = data->ms->col;
+    int pad = data->ms->pad;
+
+    for (int i = 0; i < row; ++i) 
+    {
+        for (int j = 0; j < col; ++j) 
+        {
+            ((int (*)[col]) data->matC)[i][j] = 0;
+            for (int k = 0; k < data->ms->pad; ++k) 
+            {
+                ((int (*)[col]) data->matC)[i][j] += ((int (*)[data->ms->pad]) data->ms->matA)[i][k] * ((int (*)[data->ms->col]) data->ms->matB)[k][j];
+            }
+        }
+    }
+
+    free(data);
+    pthread_exit(0);
 }
 
 
@@ -208,17 +236,39 @@ void MainRowMultiplication(multiplicationStruct *common_data, matrixStruct *outp
     int threads_num = common_data->row;
     pthread_t threads[threads_num];
 
-    for (int i = 0; i < common_data->row; ++i) {
-        functionStruct *special_data = malloc(sizeof(functionStruct));
-        special_data->cur_row = i;
-        special_data->matC = output_matrix->matrix;
-        special_data->ms = common_data;
-        pthread_create(&threads[i], NULL, ThreadRowMultiplication, special_data);
+    for (int i=0 ; i < common_data->row ; ++i) 
+    {
+        functionStruct *_data = malloc(sizeof(functionStruct));
+        _data->cur_row = i;
+        _data->matC = output_matrix->matrix;
+        _data->ms = common_data;
+        pthread_create(&threads[i], NULL, ThreadRowMultiplication, _data);
     }
 
-    for (int i = 0; i < threads_num; ++i) {
+    for (int i=0 ; i < threads_num ; ++i) 
+    {
         pthread_join(threads[i], NULL);
     }
+}
+
+
+void *ThreadRowMultiplication(void *args)
+{
+	int row = data->ms->row;
+    int col = data->ms->col;
+    int pad = data->ms->pad;
+
+    functionStruct *data = args;
+    for (int i = 0; i < col; ++i) 
+    {
+        ((int (*)[col]) data->matC)[data->cur_row][i] = 0;
+        for (int j=0 ; j < pad ; ++j) 
+        {
+            ((int (*)[data->ms->col])data->matC)[data->cur_row][i] += ((int (*)[pad]) data->ms->matA)[data->cur_row][j] * ((int (*)[col]) data->ms->matB)[j][i];
+        }
+    }
+    free(data);
+    pthread_exit(0);
 }
 
 
@@ -227,33 +277,38 @@ void MainElementMultiplication(multiplicationStruct *common_data, matrixStruct *
     int threads_num = common_data->row * common_data->col;
     pthread_t threads[threads_num];
 
-    for (int i = 0; i < common_data->row; ++i) {
-        for (int j = 0; j < common_data->col; ++j) {
-            functionStruct *special_data = malloc(sizeof(functionStruct));
-            special_data->cur_row = i;
-            special_data->cur_col = j;
-            special_data->matC = output_matrix->matrix;
-            special_data->ms = common_data;
-            pthread_create(&threads[i*common_data->col+j], NULL, ThreadElementMultiplication, special_data);
+    for (int i = 0 ; i < common_data->row ; ++i) 
+    {
+        for (int j = 0 ; j < common_data->col ; ++j) 
+        {
+            functionStruct *_data = malloc(sizeof(functionStruct));
+            _data->cur_row = i;
+            _data->cur_col = j;
+            _data->matC = output_matrix->matrix;
+            _data->ms = common_data;
+            pthread_create(&threads[i * common_data->col+j], NULL, ThreadElementMultiplication, _data);
         }
     }
 
-    for (int i = 0; i < threads_num; ++i) {
+    for (int i = 0; i < threads_num; ++i) 
+    {
         pthread_join(threads[i], NULL);
     }
 }
 
 
-void free_heap(heapStruct *heap)
+void *ThreadElementMultiplication(void *args)
 {
-    free(heap->matA->matrix);
-    free(heap->matA);
-    free(heap->matB->matrix);
-    free(heap->matB);
-    for (int i = 0; i < MATRICES_NUMBER; ++i) {
-        free(heap->matC[i]->matrix);
-        free(heap->matC[i]);
+	int row = data->ms->row;
+    int col = data->ms->col;
+    int pad = data->ms->pad;
+
+    functionStruct *data = args;
+    ((int (*)[col]) data->matC)[data->cur_row][data->cur_col] = 0;
+    for (int i = 0 ; i < pad ; ++i) 
+    {
+        ((int (*)[col]) data->matC)[data->cur_row][data->cur_col] += ((int (*)[pad]) data->ms->matA)[data->cur_row][i] * ((int (*)[col]) data->ms->matB)[i][data->cur_col];
     }
-    free(heap->matD);
-    free(heap);
+    free(data);
+    pthread_exit(0);
 }
