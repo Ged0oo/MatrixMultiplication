@@ -8,53 +8,48 @@
 #include <sys/time.h>
 
 #define MATRICES_NUMBER 3
-#define INPUT1 "a"
-#define INPUT2 "b"
-#define OUTPUT "c"
+#define INPUT1_NAME "a"
+#define INPUT2_NAME "b"
+#define OUTPUT_NAME "c"
 #define MATRIX_NAME_EXT "_per_matrix"
 #define ROW_NAME_EXT "_per_row"
 #define ELEMENT_NAME_EXT "_per_element"
 
-typedef struct 
-{
+typedef struct {
     int row, col;
     int (*matrix)[];
-}Matrix_t;
+}matrixStruct ;
 
-typedef struct  
-{
+typedef struct {
     int row, col, pad;
-    int (*MatrixA)[];
-    int (*MatrixB)[];
-}MultiplicationMatrix_t;
+    int (*A)[];
+    int (*B)[];
+}multiplicationStruct ;
 
-typedef struct  
-{
+typedef struct {
     int cur_row, cur_col;
-    int (*MatrixC)[];
-    MultiplicationMatrix_t *ms;
-}FunctionSt_t;
+    int (*C)[];
+    multiplicationStruct *ms;
+}functionStruct ;
 
+typedef struct {
+    matrixStruct *A;
+    matrixStruct *B;
+    matrixStruct *C[MATRICES_NUMBER];
+    multiplicationStruct *D;
+}heapStruct ;
 
-typedef struct 
-{
-    Matrix_t *matrixA;
-    Matrix_t *matrixB;
-    Matrix_t *matrixC[MATRICES_NUMBER];
-    MultiplicationMatrix_t *D;
-}heap_st;
-
-int read_file(char *file_name, Matrix_t *matrix);
-void write_file(char *file_name, char *extension, Matrix_t *matrix);
-void free_heap(heap_st *heap);
+int read_file(char *file_name, matrixStruct *matrix);
+void write_file(char *file_name, char *extension, matrixStruct *matrix);
+void free_heap(heapStruct *heap);
 
 void *ThreadMatrixMultiplication(void *args);
 void *ThreadRowMultiplication(void *args);
 void *ThreadElementMultiplication(void *args);
 
-void MainMatrixMultiplication(MultiplicationMatrix_t *common_data, Matrix_t *output_matrix);
-void MainRowMultiplication(MultiplicationMatrix_t *common_data, Matrix_t *output_matrix);
-void MainElementMultiplication(MultiplicationMatrix_t *common_data, Matrix_t *output_matrix);
+void MainMatrixMultiplication(multiplicationStruct *common_data, matrixStruct *output_matrix);
+void MainRowMultiplication(multiplicationStruct *common_data, matrixStruct *output_matrix);
+void MainElementMultiplication(multiplicationStruct *common_data, matrixStruct *output_matrix);
 
 #endif //__MAIN_H__
 
